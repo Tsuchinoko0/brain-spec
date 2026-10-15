@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>脳スペック診断</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+1+Code:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 基板(PCB)の上に並ぶ4つの部品スロット＋テストベイ、下に部品データシートと比較表 */
+:root{
+  --bg:#eef1ec; --surface:#f8faf6; --surface2:#e3e9e1; --ink:#17201a; --muted:#5a685e; --line:#c6d0c5;
+  --accent:#1f6b45; --on-accent:#f3f8f2; --copper:#a8662a; --you:#f3e3cf; --go:#2a9d5f; --warn:#c0492f;
+  --f-display:"DotGothic16","M PLUS 1 Code",monospace;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --f-data:"M PLUS 1 Code","SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1510; --surface:#131f18; --surface2:#1a2a21; --ink:#e3ebe3; --muted:#8fa196; --line:#2a3b31;
+  --accent:#55c48a; --on-accent:#0c1510; --copper:#d89c5c; --you:#3a2b1b; --go:#3fcf7f; --warn:#e66d52; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1510; --surface:#131f18; --surface2:#1a2a21; --ink:#e3ebe3; --muted:#8fa196; --line:#2a3b31;
+  --accent:#55c48a; --on-accent:#0c1510; --copper:#d89c5c; --you:#3a2b1b; --go:#3fcf7f; --warn:#e66d52; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.7;
+  background-image:radial-gradient(var(--line) 1px,transparent 1.2px);background-size:22px 22px}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{padding-block:40px 24px;display:flex;flex-direction:column;gap:8px}
+.eyebrow{font-family:var(--f-data);font-size:12px;letter-spacing:.14em;color:var(--copper)}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,7vw,56px);line-height:1.15;margin:0;text-wrap:balance}
+h2.sec{font-size:20px;margin:0;text-wrap:balance}
+.lead{margin:0;max-width:60ch;color:var(--muted)}
+
+.board{display:grid;grid-template-columns:240px 1fr;gap:16px;padding-block:8px 24px}
+@media (max-width:720px){.board{grid-template-columns:1fr}}
+.mods{display:grid;gap:8px;align-content:start}
+@media (max-width:720px){.mods{grid-template-columns:1fr 1fr}}
+.mod{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;text-align:left;padding:10px 12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:6px;min-width:0}
+.mod:hover{border-color:var(--accent)}
+.mod[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.mod .tag{grid-row:span 2;align-self:center;font-family:var(--f-data);font-weight:600;font-size:12px;padding:4px 6px;border-radius:3px;
+  background:var(--surface2);color:var(--accent);letter-spacing:.06em}
+.mod .nm{font-weight:700;font-size:14px}
+.mod .st{font-family:var(--f-data);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mod.done .st{color:var(--copper)}
+
+.bay{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:22px;min-height:360px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.bay h2{margin:0;font-size:20px}
+.bay p{margin:0;max-width:60ch}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.btn{background:var(--accent);color:var(--on-accent);border:0;border-radius:5px;padding:10px 18px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.steps{margin:0;padding-left:1.3em;display:grid;gap:4px}
+
+.pad{flex:1;min-height:230px;border:0;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  font-size:20px;font-weight:700;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background .08s}
+.pad.wait{background:var(--surface2);color:var(--muted)}
+.pad.go{background:var(--go);color:#fff}
+.pad.early{background:var(--warn);color:#fff}
+.pad small{font-weight:400;font-size:14px;opacity:.85}
+
+.timer{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.timer i{display:block;height:100%;background:var(--copper);width:100%}
+.hud{display:flex;justify-content:space-between;font-family:var(--f-data);font-size:13px;color:var(--muted)}
+
+.digits{font-family:var(--f-data);font-size:clamp(30px,8vw,52px);letter-spacing:.15em;text-align:center;padding-block:40px;font-weight:600;word-break:break-all}
+input.ans{font-family:var(--f-data);font-size:24px;padding:10px 12px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);width:100%;max-width:320px;letter-spacing:.08em}
+.q{font-family:var(--f-data);font-size:clamp(30px,7vw,44px);font-weight:600;text-align:center;padding-block:28px 12px}
+
+.grid{display:grid;gap:6px;width:100%;max-width:380px;aspect-ratio:1;margin:0 auto}
+.grid button{border:0;border-radius:4px;padding:0}
+.flash{animation:fl .25s}
+@keyframes fl{50%{transform:translateX(6px)}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.pad{transition:none}}
+
+/* datasheet / panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-block:0 20px;overflow:hidden}
+.panel:last-child{margin-bottom:48px}
+.pins{height:10px;background:repeating-linear-gradient(90deg,var(--copper) 0 10px,transparent 10px 22px);opacity:.75}
+.in{padding:22px;display:grid;gap:18px}
+.sh-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.badge{font-family:var(--f-data);font-size:12px;padding:2px 8px;border-radius:3px;border:1px solid var(--line);color:var(--muted)}
+.badge.mine{border-color:var(--accent);color:var(--accent)}
+.model{font-family:var(--f-display);font-size:clamp(26px,5.5vw,40px);line-height:1.2;margin:0;word-break:break-word}
+.klass{margin:0;font-weight:700;color:var(--accent)}
+.score{font-family:var(--f-data);font-size:13px;color:var(--muted)}
+.score b{font-size:28px;color:var(--ink);font-weight:600}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+.spec{min-width:620px}
+th,td{text-align:left;padding:9px 8px;border-top:1px solid var(--line);vertical-align:middle}
+th{font-weight:500;color:var(--muted);font-size:12px;letter-spacing:.06em}
+td.v{font-family:var(--f-data);font-weight:600;font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.r{font-family:var(--f-data);font-size:12px;color:var(--muted);white-space:nowrap}
+td.ex{font-size:13px}
+.bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin:0}
+tr.you td{background:var(--you)}
+.pill{display:inline-block;font-family:var(--f-data);font-size:11px;font-weight:600;padding:1px 7px;border-radius:10px;background:var(--copper);color:var(--surface);margin-left:6px;vertical-align:1px;white-space:nowrap}
+.tiers{min-width:560px}
+.tiers td:first-child{font-weight:700;white-space:nowrap}
+.tiers td.price{font-family:var(--f-data);font-size:13px;white-space:nowrap}
+
+.ladders{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:720px){.ladders{grid-template-columns:1fr}}
+.lad{border:1px solid var(--line);border-radius:6px;padding:14px;display:grid;gap:8px;min-width:0;align-content:start}
+.lad h3{margin:0;font-size:15px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.lad h3 .mono{color:var(--accent);font-size:12px}
+.lad table td{padding:6px 6px;font-size:13px}
+.lad td.n{font-family:var(--f-data);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);text-align:right;width:1%}
+</style>
+
+<header class="wrap top">
+  <div class="eyebrow">BRAIN BENCHMARK · v1.2</div>
+  <h1>脳スペック診断</h1>
+  <p class="lead">脳をパソコンに見立てて、4つのパーツを計測します。反応速度はCPU、短期記憶はメモリ、見分ける力はGPU、暗算はコア数。全部で3分ほどです。結果は実在のPCパーツやゲーム機と比べられます。</p>
+</header>
+
+<main class="wrap board">
+  <nav class="mods" id="mods" aria-label="計測パーツ"></nav>
+  <section class="bay" id="bay" aria-live="polite"></section>
+</main>
+
+<section class="wrap">
+  <div class="panel" id="sheet"></div>
+  <div class="panel"><div class="in">
+    <div><div class="eyebrow">COMPARE · パーツ別の比較</div><h2 class="sec">あなたの脳を実際の製品に例えると</h2></div>
+    <div class="ladders" id="ladders"></div>
+    <p class="note">製品の数値は公称値をもとにしたおおよその目安です。比べやすいよう、脳の測定値を各パーツの単位に換算しています。</p>
+  </div></div>
+</section>
+
+<script>
+const TESTS=[
+  {id:'cpu',tag:'CPU',nm:'反応速度',desc:'画面が緑になった瞬間にタップ。5回の平均反応時間を「クロック周波数」に換算します。'},
+  {id:'ram',tag:'RAM',nm:'短期記憶',desc:'表示される数字を覚えて入力。桁数が増えていき、覚えられた最大桁で「メモリ容量」が決まります。'},
+  {id:'gpu',tag:'GPU',nm:'色の識別',desc:'1枚だけ色が違うタイルをタップ。30秒間でいくつ見つけられるかで「GPU性能」を測ります。'},
+  {id:'alu',tag:'ALU',nm:'暗算',desc:'計算問題に30秒間答え続けます。正答数で「コア数」が決まります。'}
+];
+const SAMPLE={cpu:268,ram:7,gpu:14,alu:12};
+let state={cpu:null,ram:null,gpu:null,alu:null};
+try{const s=JSON.parse(localStorage.getItem('brainspec')||'null');if(s)state=Object.assign(state,s)}catch(e){}
+let runAll=false, current=null, timers=[];
+const $=s=>document.querySelector(s), bay=$('#bay');
+const clamp=v=>Math.max(0,Math.min(100,v));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function clearTimers(){timers.forEach(t=>{clearTimeout(t);clearInterval(t)});timers=[]}
+
+/* ---- 換算 ---- */
+const ghz=ms=>800/ms;
+const gb=span=>2**(span-3);
+const tflops=n=>0.3*1.2**n;
+const cores=n=>Math.max(1,Math.round(n*0.8));
+function score(id,v){
+  if(v==null)return null;
+  if(id==='cpu')return clamp((450-v)/(450-180)*100);
+  if(id==='ram')return clamp((v-3)/(10-3)*100);
+  return clamp(v/30*100);
+}
+function fmtGB(g){return g<1?Math.round(g*1024)+' MB':g+' GB'}
+function spec(id,v){
+  if(v==null)return{main:'—',raw:'未計測'};
+  if(id==='cpu')return{main:ghz(v).toFixed(2)+' GHz',raw:`平均反応 ${Math.round(v)} ms`};
+  if(id==='ram')return{main:fmtGB(gb(v)),raw:`記憶スパン ${v} 桁`};
+  if(id==='gpu'){const t=tflops(v);return{main:(t<10?t.toFixed(1):Math.round(t))+' TFLOPS',raw:`識別 ${v} 回 / 30秒`}}
+  return{main:cores(v)+' コア',raw:`正答 ${v} 問 / 30秒`};
+}
+
+/* ---- 製品の比較表（上が高性能）。m(v)=その行に届いているか ---- */
+const LADDERS={
+  cpu:{title:'CPU ＝ 反応速度',note:'人間の平均的な反応時間はおよそ250ms。速いほど高性能なCPUに相当します。',rows:[
+    {n:'〜190ms',p:'最上位デスクトップCPU（Ryzen 9 / Core i9 級）',m:v=>v<=190},
+    {n:'〜220ms',p:'ハイエンドCPU（Ryzen 7 / Core i7 級）',m:v=>v<=220},
+    {n:'〜260ms',p:'ミドルCPU（Ryzen 5 / Core i5 級）',m:v=>v<=260},
+    {n:'〜320ms',p:'エントリーCPU（Core i3 級）',m:v=>v<=320},
+    {n:'〜400ms',p:'格安ノートPC（Celeron / Intel N100 級）',m:v=>v<=400},
+    {n:'400ms〜',p:'小型ボード（Raspberry Pi 級）',m:()=>true}]},
+  ram:{title:'RAM ＝ 短期記憶',note:'人が一度に覚えられる数字は平均7桁前後と言われます。',rows:[
+    {n:'128 GB',p:'サーバー',m:v=>v>=10},
+    {n:'64 GB',p:'動画編集用ワークステーション',m:v=>v>=9},
+    {n:'32 GB',p:'ハイエンドゲーミングPC',m:v=>v>=8},
+    {n:'16 GB',p:'標準的なゲーミングPC',m:v=>v>=7},
+    {n:'8 GB',p:'一般的なノートPC',m:v=>v>=6},
+    {n:'4 GB',p:'数年前のスマホ',m:v=>v>=5},
+    {n:'2 GB以下',p:'初期のスマホ',m:()=>true}]},
+  gpu:{title:'GPU ＝ 色の識別',note:'TFLOPSはGPUの計算性能の単位。ゲーム機やグラフィックボードの公称値と比べています。',rows:[
+    {n:'約105',p:'GeForce RTX 5090',m:v=>tflops(v)>=105},
+    {n:'約83',p:'GeForce RTX 4090',m:v=>tflops(v)>=83},
+    {n:'約29',p:'GeForce RTX 4070',m:v=>tflops(v)>=29},
+    {n:'約10',p:'PlayStation 5',m:v=>tflops(v)>=10},
+    {n:'約4',p:'Xbox Series S',m:v=>tflops(v)>=4},
+    {n:'約1.8',p:'PlayStation 4',m:v=>tflops(v)>=1.8},
+    {n:'約0.4',p:'Nintendo Switch',m:v=>tflops(v)>=0.4},
+    {n:'0.4未満',p:'電卓・ガラケー',m:()=>true}]},
+  alu:{title:'コア ＝ 暗算',note:'コアは同時に処理できる仕事の数。暗算の正答数をコア数に換算しています。',rows:[
+    {n:'24コア',p:'Core i9-14900K',m:v=>cores(v)>=24},
+    {n:'16コア',p:'Ryzen 9 9950X',m:v=>cores(v)>=16},
+    {n:'8コア',p:'Ryzen 7 9700X',m:v=>cores(v)>=8},
+    {n:'6コア',p:'Ryzen 5 9600X',m:v=>cores(v)>=6},
+    {n:'4コア',p:'Core i3-14100',m:v=>cores(v)>=4},
+    {n:'2コア',p:'Celeron',m:v=>cores(v)>=2},
+    {n:'1コア',p:'初期のパソコン',m:()=>true}]}
+};
+function matchIdx(id,v){return v==null?-1:LADDERS[id].rows.findIndex(r=>r.m(v))}
+
+/* ---- PC階級 ---- */
+const TIERS=[
+  {max:12,code:'N100',name:'ポケット電卓級',ex:'電卓・ガラケー',price:'—'},
+  {max:28,code:'N200',name:'事務用ノートPC級',ex:'Celeron / メモリ8GB / 内蔵GPU',price:'約5万円'},
+  {max:45,code:'N300',name:'標準デスクトップ級',ex:'Core i5 / メモリ16GB / 内蔵GPU',price:'約10万円'},
+  {max:62,code:'N500',name:'ミドルゲーミングPC級',ex:'Ryzen 5 ＋ RTX 4060 / メモリ16GB',price:'約15〜20万円'},
+  {max:78,code:'N700',name:'ハイエンドゲーミングPC級',ex:'Ryzen 7 ＋ RTX 4070 Ti / メモリ32GB',price:'約30万円'},
+  {max:92,code:'N900',name:'ワークステーション級',ex:'Core i9 ＋ RTX 4090 / メモリ64GB',price:'約60万円〜'},
+  {max:101,code:'N-X',name:'スーパーコンピュータ級',ex:'「富岳」のような国家プロジェクト',price:'1,000億円超'}
+];
+function overall(d){
+  if(TESTS.some(t=>d[t.id]==null))return null;
+  const avg=TESTS.reduce((s,t)=>s+score(t.id,d[t.id]),0)/4;
+  const ti=TIERS.findIndex(x=>avg<x.max);
+  return{avg,ti,tier:TIERS[ti]};
+}
+
+/* ---- パーツ選択とテストベイ ---- */
+function renderMods(){
+  $('#mods').innerHTML=TESTS.map(t=>`<button class="mod ${state[t.id]!=null?'done':''}" data-id="${t.id}" aria-current="${current===t.id}">
+    <span class="tag">${t.tag}</span><span class="nm">${t.nm}</span><span class="st">${state[t.id]!=null?spec(t.id,state[t.id]).main:'未計測'}</span></button>`).join('');
+  document.querySelectorAll('.mod').forEach(b=>b.onclick=()=>{runAll=false;intro(b.dataset.id)});
+}
+
+function home(){
+  clearTimers();current=null;renderMods();
+  const done=TESTS.filter(t=>state[t.id]!=null).length;
+  bay.innerHTML=`<h2>${done===4?'計測完了':'ベンチマークを始める'}</h2>
+  <p class="muted">${done===4?'下のデータシートがあなたの脳のスペックです。もう一度測って記録更新を狙うこともできます。':'4つのテストを順番に実行します。左のパーツを選べば1つだけ測ることもできます。'}</p>
+  <ol class="steps">${TESTS.map(t=>`<li><b class="mono">${t.tag}</b>　${t.nm}</li>`).join('')}</ol>
+  <div class="row"><button class="btn" id="all">${done===4?'もう一度すべて計測':done?'続きから計測':'すべて計測する'}</button>
+  ${done?'<button class="btn ghost" id="reset">記録を消す</button>':''}</div>`;
+  $('#all').onclick=()=>{runAll=true;const first=(done>0&&done<4)?TESTS.find(t=>state[t.id]==null):TESTS[0];intro(first.id)};
+  const r=$('#reset');if(r)r.onclick=()=>{state={cpu:null,ram:null,gpu:null,alu:null};save();home();renderAll()};
+}
+
+function intro(id){
+  clearTimers();current=id;renderMods();
+  const t=TESTS.find(x=>x.id===id);
+  bay.innerHTML=`<div class="eyebrow">${t.tag} · ${runAll?`${TESTS.indexOf(t)+1} / 4`:'単体計測'}</div>
+  <h2>${t.nm}</h2><p>${t.desc}</p>
+  <div class="row"><button class="btn" id="go">開始</button><button class="btn ghost" id="back">戻る</button></div>`;
+  $('#go').onclick=()=>({cpu:runCpu,ram:runRam,gpu:runGpu,alu:runAlu})[id]();
+  $('#back').onclick=()=>{runAll=false;home()};
+  $('#go').focus();
+}
+
+function finish(id,val){
+  clearTimers();state[id]=val;save();renderMods();renderAll();
+  const s=spec(id,val), t=TESTS.find(x=>x.id===id), mi=matchIdx(id,val);
+  const i=TESTS.indexOf(t);
+  /* 一括計測なら次の順番、単体計測でも未計測が残っていればそれを案内 */
+  const next=runAll?TESTS[i+1]:[...TESTS.slice(i+1),...TESTS.slice(0,i)].find(x=>state[x.id]==null);
+  if(next)runAll=true;
+  bay.innerHTML=`<div class="eyebrow">${t.tag} · 計測結果</div>
+  <h2 class="mono" style="font-size:34px">${s.main}</h2>
+  <p>${esc(LADDERS[id].rows[mi].p)} に相当</p><p class="muted mono">${s.raw}</p>
+  <div class="row">${next?`<button class="btn" id="nx">次へ：${next.nm}</button>`:'<button class="btn" id="nx">結果を見る</button>'}
+  <button class="btn ghost" id="again">やり直す</button></div>`;
+  $('#nx').onclick=()=>{if(next)intro(next.id);else{runAll=false;home();$('#sheet').scrollIntoView({behavior:'smooth'})}};
+  $('#again').onclick=()=>{runAll=false;intro(id)};
+  $('#nx').focus();
+}
+function save(){try{localStorage.setItem('brainspec',JSON.stringify(state))}catch(e){}}
+
+/* ---- CPU ---- */
+function runCpu(){
+  const times=[];let phase='wait',start=0;
+  bay.innerHTML=`<div class="hud"><span>CPU · 反応速度</span><span id="cnt">0 / 5</span></div><button class="pad wait" id="pad"></button>`;
+  const pad=$('#pad');
+  const set=(cls,html)=>{pad.className='pad '+cls;pad.innerHTML=html};
+  function arm(){phase='wait';set('wait','待って…<small>緑になったらタップ</small>');
+    timers.push(setTimeout(()=>{phase='go';start=performance.now();set('go','いま！')},1200+Math.random()*2600))}
+  function hit(){
+    if(phase==='wait'){clearTimers();phase='early';set('early','フライング<small>タップでやり直し</small>')}
+    else if(phase==='early'||phase==='between')arm();
+    else if(phase==='go'){const ms=performance.now()-start;times.push(ms);$('#cnt').textContent=`${times.length} / 5`;
+      if(times.length>=5){finish('cpu',Math.round(times.reduce((a,b)=>a+b)/5));return}
+      phase='between';set('wait',`<span class="mono">${Math.round(ms)} ms</span><small>タップで次へ</small>`)}
+  }
+  pad.addEventListener('pointerdown',e=>{e.preventDefault();hit()});
+  pad.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();if(!e.repeat)hit()}});
+  pad.addEventListener('click',e=>e.preventDefault());
+  pad.focus();arm();
+}
+
+/* ---- RAM ---- */
+function runRam(){
+  let len=3,best=2,lives=2;
+  function round(){
+    let d='';for(let i=0;i<len;i++)d+=Math.floor(Math.random()*10);
+    bay.innerHTML=`<div class="hud"><span>RAM · ${len} 桁</span><span>ミス残り ${lives}</span></div><div class="digits">${d}</div>`;
+    timers.push(setTimeout(()=>{
+      bay.innerHTML=`<div class="hud"><span>RAM · ${len} 桁</span><span>ミス残り ${lives}</span></div>
+      <p>覚えた数字を入力してください</p>
+      <form id="f" class="row"><input id="ram-in" class="ans" inputmode="numeric" autocomplete="off" aria-label="数字"><button class="btn">決定</button></form>`;
+      const inp=$('#ram-in');inp.focus();
+      $('#f').onsubmit=e=>{e.preventDefault();
+        if(inp.value.replace(/\D/g,'')===d){best=len;len++;if(len>14)return finish('ram',best);round()}
+        else{lives--;if(lives<=0)return finish('ram',best);
+          bay.innerHTML=`<div class="hud"><span>RAM · ${len} 桁</span><span>ミス残り ${lives}</span></div><p>不正解。正解は <b class="mono">${d}</b> でした。同じ桁数でもう一度。</p>`;
+          timers.push(setTimeout(round,1600))}};
+    },len*550+700));
+  }
+  round();
+}
+
+/* ---- GPU ---- */
+function runGpu(){
+  let level=0,end=performance.now()+30000;
+  bay.innerHTML=`<div class="hud"><span>GPU · 正解 <b id="sc">0</b></span><span id="tleft">30.0 秒</span></div>
+  <div class="timer"><i id="tbar"></i></div><div class="grid" id="g"></div><p class="note">間違えると1秒減ります</p>`;
+  const g=$('#g');
+  function board(){
+    const n=Math.min(7,3+Math.floor(level/4));const delta=Math.max(4,24-level*1.1);
+    const h=Math.floor(Math.random()*360),l=48+Math.random()*10;const odd=Math.floor(Math.random()*n*n);
+    g.style.gridTemplateColumns=`repeat(${n},1fr)`;
+    g.innerHTML=Array.from({length:n*n},(_,i)=>`<button aria-label="タイル${i+1}" data-o="${i===odd?1:0}" style="background:hsl(${h} 60% ${i===odd?l+delta:l}%)"></button>`).join('');
+  }
+  g.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.o==='1'){level++;$('#sc').textContent=level;board()}
+    else{end-=1000;g.classList.remove('flash');void g.offsetWidth;g.classList.add('flash')}};
+  const tick=setInterval(()=>{const left=Math.max(0,end-performance.now());
+    $('#tbar').style.width=(left/300)+'%';$('#tleft').textContent=(left/1000).toFixed(1)+' 秒';
+    if(left<=0)finish('gpu',level)},100);
+  timers.push(tick);board();
+}
+
+/* ---- ALU ---- */
+function runAlu(){
+  let n=0,ans=0;const end=performance.now()+30000;
+  bay.innerHTML=`<div class="hud"><span>ALU · 正解 <b id="sc">0</b></span><span id="tleft">30.0 秒</span></div>
+  <div class="timer"><i id="tbar"></i></div><div class="q" id="q"></div>
+  <form id="f" class="row" style="justify-content:center"><input id="alu-in" class="ans" inputmode="numeric" autocomplete="off" aria-label="答え"><button class="btn">回答</button></form>
+  <p class="note" style="text-align:center">Enterで回答。間違えても次の問題へ進みます</p>`;
+  const r=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+  function next(){const k=r(0,2),lv=Math.min(n,15);let a,b,op;
+    if(k===0){a=r(5,20+lv*4);b=r(5,20+lv*4);op='+';ans=a+b}
+    else if(k===1){a=r(10,30+lv*4);b=r(2,a-1);op='−';ans=a-b}
+    else{a=r(2,6+Math.floor(lv/2));b=r(2,9);op='×';ans=a*b}
+    $('#q').textContent=`${a} ${op} ${b}`}
+  const inp=$('#alu-in');
+  $('#f').onsubmit=e=>{e.preventDefault();if(inp.value.trim()==='')return;
+    if(parseInt(inp.value,10)===ans){n++;$('#sc').textContent=n}
+    else{inp.classList.remove('flash');void inp.offsetWidth;inp.classList.add('flash')}
+    inp.value='';next()};
+  const tick=setInterval(()=>{const left=Math.max(0,end-performance.now());
+    $('#tbar').style.width=(left/300)+'%';$('#tleft').textContent=(left/1000).toFixed(1)+' 秒';
+    if(left<=0)finish('alu',n)},100);
+  timers.push(tick);next();inp.focus();
+}
+
+/* ---- データシート ---- */
+const mine=()=>TESTS.some(t=>state[t.id]!=null);
+const shown=()=>mine()?state:SAMPLE;
+function renderSheet(){
+  const d=shown(), o=overall(d), left=TESTS.filter(t=>d[t.id]==null).length;
+  const you=mine()?'あなた':'サンプル';
+  $('#sheet').innerHTML=`<div class="pins"></div><div class="in">
+   <div class="sh-head"><span class="eyebrow">DATASHEET · 脳プロセッサ仕様</span>
+   <span class="badge ${mine()?'mine':''}">${mine()?'あなたの計測結果':'サンプル（計測すると置き換わります）'}</span></div>
+   <div><p class="model">${o?`NEURON ${o.tier.code} @ ${ghz(d.cpu).toFixed(2)}GHz`:'NEURON ????'}</p>
+   <p class="klass">${o?o.tier.name:`あと ${left} 項目で型番が確定します`}</p></div>
+   ${o?`<div class="score">総合スコア <b>${Math.round(o.avg)}</b> / 100</div>`:''}
+   <div class="tbl-wrap"><table class="spec"><thead><tr><th>パーツ</th><th>脳の機能</th><th>スペック</th><th>性能</th><th>身近な例</th><th>実測値</th></tr></thead><tbody>
+   ${TESTS.map(t=>{const s=spec(t.id,d[t.id]),sc=score(t.id,d[t.id]),mi=matchIdx(t.id,d[t.id]);
+     return`<tr><td class="mono"><b>${t.tag}</b></td><td>${t.nm}</td><td class="v">${s.main}</td>
+     <td><div class="bar" role="img" aria-label="性能 ${sc==null?'未計測':Math.round(sc)}"><i style="width:${sc??0}%"></i></div></td>
+     <td class="ex">${mi<0?'—':esc(LADDERS[t.id].rows[mi].p)}</td><td class="r">${s.raw}</td></tr>`}).join('')}
+   </tbody></table></div>
+   <div><div class="eyebrow" style="margin-bottom:6px">PC階級表 · どれくらいすごい？</div>
+   <div class="tbl-wrap"><table class="tiers"><thead><tr><th>階級</th><th>パソコンでいうと</th><th>価格の目安</th></tr></thead><tbody>
+   ${TIERS.map((x,i)=>`<tr class="${o&&o.ti===i?'you':''}"><td>${x.name}${o&&o.ti===i?`<span class="pill">${you}</span>`:''}</td><td>${x.ex}</td><td class="price">${x.price}</td></tr>`).slice().reverse().join('')}
+   </tbody></table></div></div>
+   <p class="note">スコアは遊びの目安です。体調や端末の遅延（特にタッチ画面）でも数値は変わります。</p></div>`;
+}
+function renderLadders(){
+  const d=shown(), you=mine()?'あなた':'サンプル';
+  $('#ladders').innerHTML=TESTS.map(t=>{const L=LADDERS[t.id],mi=matchIdx(t.id,d[t.id]);
+    return`<div class="lad"><h3>${L.title}<span class="mono">${spec(t.id,d[t.id]).main}</span></h3>
+    <table><tbody>${L.rows.map((r,i)=>`<tr class="${i===mi?'you':''}"><td>${esc(r.p)}${i===mi?`<span class="pill">${you}</span>`:''}</td><td class="n">${r.n}</td></tr>`).join('')}</tbody></table>
+    <p class="note">${L.note}</p></div>`}).join('');
+}
+function renderAll(){renderSheet();renderLadders()}
+
+home();renderAll();
+</script>
+
+</body>
+</html>
